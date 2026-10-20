@@ -8,22 +8,21 @@
   body { margin: 0; font: 14px/1.4 -apple-system, Segoe UI, Roboto, sans-serif; background: #14161c; color: #e6e8ee; }
   header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #1b1e27; border-bottom: 1px solid #2a2e3a; }
   header h1 { font-size: 15px; margin: 0; font-weight: 600; }
-  header select, header input.model { background: #22252f; color: #e6e8ee; border: 1px solid #333747; border-radius: 6px; padding: 5px 8px; font-size: 13px; }
+  header select { background: #22252f; color: #e6e8ee; border: 1px solid #333747; border-radius: 6px; padding: 5px 8px; font-size: 13px; }
+  header button { background: #22252f; color: #e6e8ee; border: 1px solid #333747; border-radius: 6px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
   header .spacer { flex: 1; }
   header .status { font-size: 12px; color: #8b90a0; }
   .layout { display: flex; height: calc(100vh - 45px); }
-  .chatcol { flex: 1 1 62%; display: flex; flex-direction: column; border-right: 1px solid #2a2e3a; min-width: 0; }
-  .rail { flex: 0 0 38%; max-width: 480px; overflow-y: auto; padding: 14px; }
-  #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-  .msg { max-width: 78%; padding: 9px 12px; border-radius: 10px; white-space: pre-wrap; word-wrap: break-word; }
-  .msg.user { align-self: flex-end; background: #2b5b8f; }
-  .msg.assistant { align-self: flex-start; background: #23262f; }
-  .msg.tool { align-self: stretch; max-width: 100%; background: #1a1c24; border: 1px solid #2a2e3a; color: #9aa0b4; font-family: ui-monospace, Consolas, monospace; font-size: 12px; padding: 6px 10px; border-radius: 6px; }
-  .msg.tool summary { cursor: pointer; color: #7a8cff; }
-  .composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #2a2e3a; }
-  .composer textarea { flex: 1; resize: none; background: #1b1e27; color: #e6e8ee; border: 1px solid #333747; border-radius: 8px; padding: 10px; font: inherit; height: 52px; }
-  .composer button { background: #3d6fd1; color: white; border: none; border-radius: 8px; padding: 0 18px; font-size: 14px; cursor: pointer; }
-  .composer button:disabled { opacity: .5; cursor: default; }
+  .planecol { flex: 1 1 42%; display: flex; flex-direction: column; border-right: 1px solid #2a2e3a; min-width: 0; padding: 20px 22px; overflow-y: auto; }
+  .rail { flex: 1 1 58%; overflow-y: auto; padding: 14px; }
+  .planecol h2 { margin: 0 0 8px; font-size: 18px; }
+  .planecol p { color: #b7bccb; margin: 0 0 12px; max-width: 42em; }
+  .planecol code, .kv code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: #1b1e27; padding: 1px 6px; border-radius: 4px; color: #c9d1ff; }
+  .kv { background: #1b1e27; border: 1px solid #2a2e3a; border-radius: 10px; padding: 12px 14px; margin: 14px 0; font-size: 13px; }
+  .kv div { margin: 4px 0; color: #8b90a0; }
+  .kv strong { color: #e6e8ee; font-weight: 600; }
+  .steps { margin: 0; padding-left: 18px; color: #b7bccb; }
+  .steps li { margin: 6px 0; }
   .card { background: #1b1e27; border: 1px solid #2a2e3a; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
   .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #8b90a0; margin: 0 0 8px; }
   .card textarea, .card input[type=text] { width: 100%; background: #14161c; color: #e6e8ee; border: 1px solid #333747; border-radius: 6px; padding: 7px 9px; font: inherit; margin-bottom: 6px; }
@@ -60,17 +59,10 @@
   <select id="epPick"></select>
   <button id="epNew" title="New episode">+ new</button>
   <div class="spacer"></div>
-  <input class="model" id="modelInput" placeholder="model, e.g. anthropic/claude-sonnet-4.5" size="34">
   <span class="status" id="status"></span>
 </header>
 <div class="layout">
-  <div class="chatcol">
-    <div id="log"></div>
-    <div class="composer">
-      <textarea id="input" placeholder="Talk through the movie concept... (Enter to send, Shift+Enter for newline)"></textarea>
-      <button id="send">Send</button>
-    </div>
-  </div>
+  <div class="planecol" id="planecol"></div>
   <div class="rail" id="rail"></div>
 </div>
 
@@ -79,9 +71,7 @@ const $ = id => document.getElementById(id);
 let episodes = [];
 let activeEpisodeId = null;
 let storyboard = null;
-let thread = null;
-let messages = [];
-let sending = false;
+let config = null;
 let jobsByScene = {};
 
 async function api(path, opts) {
@@ -95,21 +85,39 @@ async function loadEpisodes() {
   $('epPick').innerHTML = episodes.map(e => `<option value="${e.id}" ${e.is_active ? 'selected' : ''}>${escapeHtml(e.title)}</option>`).join('');
   const active = episodes.find(e => e.is_active) || episodes[0];
   if (active) { activeEpisodeId = active.id; await loadEpisodeState(); }
-  else { activeEpisodeId = null; storyboard = null; renderRail(); renderLog(); }
+  else { activeEpisodeId = null; storyboard = null; renderRail(); renderPlane(); }
 }
 
 async function loadEpisodeState() {
   if (!activeEpisodeId) return;
   storyboard = await api(`/api/storyboard?episode_id=${activeEpisodeId}`);
-  const chatData = await api(`/api/episodes/${activeEpisodeId}/chat`);
-  thread = chatData.thread;
-  messages = chatData.messages;
-  $('modelInput').value = thread.model;
   const videoJobs = await api(`/api/jobs?episode_id=${activeEpisodeId}&type=video&limit=200`);
   jobsByScene = {};
   for (const j of videoJobs) (jobsByScene[j.scene_id] ||= []).push(j);
   renderRail();
-  renderLog();
+  renderPlane();
+}
+
+function renderPlane() {
+  const cfg = config || {};
+  const ep = storyboard && storyboard.episode;
+  $('planecol').innerHTML = `
+    <h2>Plan in Cursor</h2>
+    <p>Chat and storyboard planning happen with the Cursor agent in this repo.
+       This page is the live storyboard + media viewer. Video renders through
+       OpenRouter <strong>MiniMax H3</strong>.</p>
+    <div class="kv">
+      <div><strong>Active episode</strong> ${ep ? escapeHtml(ep.title) + ' · <code>' + ep.id + '</code>' : '<span class="empty">none yet</span>'}</div>
+      <div><strong>Video model</strong> <code>${escapeHtml(cfg.default_video_model || 'minimax/hailuo-3')}</code></div>
+      <div><strong>Scene defaults</strong> ${cfg.default_scene_duration || 5}s · ${escapeHtml(cfg.default_scene_resolution || '2K')} · ${escapeHtml(cfg.default_scene_aspect_ratio || '16:9')}</div>
+      <div><strong>API</strong> <code>/api/config</code> · <code>/api/storyboard</code> · <code>/api/scenes/{id}/generate</code></div>
+    </div>
+    <ol class="steps">
+      <li>Paste lyrics in Cursor — one scene is made per sentence/line.</li>
+      <li>The Director writes visual prompts (MiniMax H3, 2K) and quotes cost.</li>
+      <li>You say yes → clips generate; they appear here. Approve, then stitch.</li>
+    </ol>
+  `;
 }
 
 function entityCard(e) {
@@ -122,124 +130,103 @@ function entityCard(e) {
         ${img}
         <div class="entity-info">
           <div class="name">${escapeHtml(e.name)}</div>
-          <div class="desc">${escapeHtml(e.description) || '(no description yet)'}</div>
+          <div class="desc">${escapeHtml(e.description || '')}</div>
         </div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-function escapeHtml(s) {
-  return (s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-function renderRail() {
-  const r = $('rail');
-  if (!storyboard) { r.innerHTML = `<div class="card"><div class="empty">No episode yet — click "+ new" above.</div></div>`; return; }
-  const ep = storyboard;
-  r.innerHTML = `
-    <div class="card">
-      <h2>Episode bible</h2>
-      <input type="text" id="ep_title" value="${escapeHtml(ep.title)}" placeholder="Title">
-      <textarea id="ep_premise" placeholder="Premise">${escapeHtml(ep.premise)}</textarea>
-      <textarea id="ep_style" placeholder="Visual/tonal style">${escapeHtml(ep.style)}</textarea>
-    </div>
-    <div class="card">
-      <h2>Characters (${ep.characters.length})</h2>
-      ${ep.characters.length ? ep.characters.map(c => entityCard(c)).join('') : '<div class="empty">none yet</div>'}
-    </div>
-    <div class="card">
-      <h2>Locations (${ep.locations.length})</h2>
-      ${ep.locations.length ? ep.locations.map(l => entityCard(l)).join('') : '<div class="empty">none yet</div>'}
-    </div>
-    <div class="card">
-      <div class="cardhead">
-        <h2>Scenes (${ep.scenes.length})</h2>
-        <button id="stitchBtn">Stitch approved scenes</button>
+function takeHtml(job, scene) {
+  if (job.status !== 'completed' || !job.media_path) {
+    return `<div class="take"><div class="row">${job.status}${job.error ? ' — ' + escapeHtml(job.error) : ''} · <code>${job.id}</code></div></div>`;
+  }
+  const approved = scene.approved_take_id === job.id;
+  return `
+    <div class="take">
+      <video controls src="/media/${job.media_path}"></video>
+      <div class="row">
+        <code>${job.id}</code>
+        ${approved ? '<span class="pill approved">approved</span>'
+          : `<button class="approve" data-scene="${scene.id}" data-job="${job.id}">approve</button>`}
       </div>
-      <div class="stitchinfo" id="stitchInfo"></div>
-      ${ep.scenes.length ? ep.scenes.map((s, i) => sceneCard(s, i)).join('') : '<div class="empty">none yet</div>'}
-    </div>
-  `;
-  const debounced = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
-  const saveBible = debounced(async () => {
-    await api(`/api/episodes/${activeEpisodeId}`, { method: 'PATCH', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ title: $('ep_title').value, premise: $('ep_premise').value, style: $('ep_style').value }) });
-  }, 600);
-  $('ep_title').oninput = saveBible;
-  $('ep_premise').oninput = saveBible;
-  $('ep_style').oninput = saveBible;
-
-  r.querySelectorAll('[data-approve]').forEach(btn => btn.onclick = async () => {
-    await api(`/api/scenes/${btn.dataset.scene}/approve`, { method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ job_id: btn.dataset.approve }) });
-    await loadEpisodeState();
-  });
-  r.querySelectorAll('[data-unapprove]').forEach(btn => btn.onclick = async () => {
-    await api(`/api/scenes/${btn.dataset.unapprove}/unapprove`, { method: 'POST' });
-    await loadEpisodeState();
-  });
-  $('stitchBtn').onclick = async () => {
-    $('stitchBtn').disabled = true;
-    $('stitchInfo').textContent = 'Stitching…';
-    try {
-      const res = await api(`/api/episodes/${activeEpisodeId}/stitch`, { method: 'POST' });
-      $('stitchInfo').innerHTML = res.status === 'completed'
-        ? `Done — <a href="${res.output_path}" target="_blank">view episode (${res.scene_count} scenes)</a>`
-        : `Failed: ${escapeHtml(res.error || 'unknown error')}`;
-    } catch (e) {
-      $('stitchInfo').textContent = `Failed: ${e.message}`;
-    } finally {
-      $('stitchBtn').disabled = false;
-    }
-  };
+    </div>`;
 }
 
 function sceneCard(s, i) {
-  const jobs = (jobsByScene[s.id] || []).slice().sort((a, b) => a.created_at < b.created_at ? 1 : -1);
-  const takes = jobs.map(j => {
-    const approved = s.approved_take_id === j.id;
-    if (j.status === 'completed' && j.media_path) {
-      return `
-        <div class="take">
-          <video controls preload="metadata" src="/media/${j.media_path}"></video>
-          <div class="row">
-            <span>$${(j.actual_cost ?? j.estimated_cost ?? 0).toFixed(2)}</span>
-            ${approved
-              ? `<button class="approve" disabled>✓ approved</button><button data-unapprove="${s.id}">unapprove</button>`
-              : `<button class="approve" data-scene="${s.id}" data-approve="${j.id}">approve this take</button>`}
-          </div>
-        </div>`;
-    }
-    if (j.status === 'failed') {
-      return `<div class="take"><div class="row" style="color:#ff9b9b">failed: ${escapeHtml((j.error||'').slice(0,120))}</div></div>`;
-    }
-    return `<div class="take"><div class="row">${j.status}${j.phase ? ' · ' + escapeHtml(j.phase) : ''}</div></div>`;
-  }).join('');
+  const takes = (jobsByScene[s.id] || []).map(j => takeHtml(j, s)).join('');
+  const model = s.video_model ? ` · ${escapeHtml(s.video_model)}` : '';
   return `
     <div class="entity">
       <div class="name">${i+1}. ${escapeHtml(s.title)} <span class="pill ${s.status}">${s.status}</span></div>
-      <div class="meta">${s.type} · ${s.duration}s · ${s.resolution}${s.chain ? ' · chained' : ''}</div>
+      <div class="meta">${s.type} · ${s.duration}s · ${s.resolution}${s.chain ? ' · chained' : ''}${model}</div>
+      ${s.prompt ? `<div class="desc">${escapeHtml(s.prompt)}</div>` : ''}
       ${takes ? `<div class="takes">${takes}</div>` : ''}
     </div>
   `;
 }
 
-function renderLog() {
-  const log = $('log');
-  log.innerHTML = messages.map(m => {
-    if (m.role === 'user' || m.role === 'assistant') {
-      if (!m.content && !(m.tool_calls && m.tool_calls.length)) return '';
-      return `<div class="msg ${m.role}">${escapeHtml(m.content || '')}</div>`;
+function renderRail() {
+  const rail = $('rail');
+  if (!storyboard) {
+    rail.innerHTML = '<div class="empty">Create an episode to see the storyboard.</div>';
+    return;
+  }
+  const ep = storyboard.episode;
+  const chars = storyboard.characters || [];
+  const locs = storyboard.locations || [];
+  const scenes = storyboard.scenes || [];
+  rail.innerHTML = `
+    <div class="card">
+      <h2>Episode</h2>
+      <div class="name" style="font-weight:600;margin-bottom:4px">${escapeHtml(ep.title)}</div>
+      <div class="desc">${escapeHtml(ep.premise || '(no premise yet)')}</div>
+      <div class="meta" style="margin-top:6px">${escapeHtml(ep.style || '')}</div>
+    </div>
+    <div class="card">
+      <h2>Characters (${chars.length})</h2>
+      ${chars.length ? chars.map(entityCard).join('') : '<div class="empty">none yet</div>'}
+    </div>
+    <div class="card">
+      <h2>Locations (${locs.length})</h2>
+      ${locs.length ? locs.map(entityCard).join('') : '<div class="empty">none yet</div>'}
+    </div>
+    <div class="card">
+      <div class="cardhead">
+        <h2>Scenes (${scenes.length})</h2>
+        <button id="stitchBtn" ${scenes.some(s => s.approved_take_id) ? '' : 'disabled'}>Stitch episode</button>
+      </div>
+      ${scenes.length ? scenes.map(sceneCard).join('') : '<div class="empty">none yet</div>'}
+      <div class="stitchinfo" id="stitchInfo"></div>
+    </div>
+  `;
+  rail.querySelectorAll('button.approve').forEach(btn => {
+    btn.onclick = async () => {
+      await api(`/api/scenes/${btn.dataset.scene}/approve`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ job_id: btn.dataset.job }),
+      });
+      await loadEpisodeState();
+    };
+  });
+  const stitch = $('stitchBtn');
+  if (stitch) stitch.onclick = async () => {
+    stitch.disabled = true;
+    $('stitchInfo').textContent = 'stitching…';
+    try {
+      const res = await api(`/api/episodes/${activeEpisodeId}/stitch`, { method: 'POST' });
+      $('stitchInfo').innerHTML = res.media_path
+        ? `Done — <a href="/media/${res.media_path}" target="_blank">open episode</a>`
+        : JSON.stringify(res);
+    } catch (e) {
+      $('stitchInfo').textContent = e.message;
+    } finally {
+      stitch.disabled = false;
     }
-    if (m.role === 'tool') {
-      let body = m.content || '';
-      try { body = JSON.stringify(JSON.parse(body), null, 2); } catch (e) {}
-      return `<details class="msg tool"><summary>tool result</summary><pre>${escapeHtml(body)}</pre></details>`;
-    }
-    return '';
-  }).join('') || '<div class="empty" style="padding:16px">Say hello and start talking through the movie concept.</div>';
-  log.scrollTop = log.scrollHeight;
+  };
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 async function createEpisode() {
@@ -251,52 +238,24 @@ async function createEpisode() {
   await loadEpisodeState();
 }
 
-async function send() {
-  const text = $('input').value.trim();
-  if (!text || sending || !activeEpisodeId) return;
-  sending = true;
-  $('send').disabled = true;
-  $('status').textContent = 'thinking…';
-  messages.push({ role: 'user', content: text });
-  $('input').value = '';
-  renderLog();
-  try {
-    await api(`/api/episodes/${activeEpisodeId}/chat`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ message: text, model: $('modelInput').value || undefined }),
-    });
-    await loadEpisodeState();
-  } catch (e) {
-    messages.push({ role: 'assistant', content: `[error] ${e.message}` });
-    renderLog();
-  } finally {
-    sending = false;
-    $('send').disabled = false;
-    $('status').textContent = '';
-  }
-}
-
 $('epNew').onclick = createEpisode;
 $('epPick').onchange = async () => {
   activeEpisodeId = $('epPick').value;
   await api(`/api/episodes/${activeEpisodeId}/select`, { method: 'POST' });
   await loadEpisodeState();
 };
-$('send').onclick = send;
-$('input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-});
 
-// Lightweight stopgap for background job completion (portraits, video renders) showing up
-// without the user having to send a chat message first. Full push replaces this later (M6).
-// Skips while typing anywhere so it never fights an in-progress edit or composed message.
 setInterval(async () => {
   const tag = document.activeElement && document.activeElement.tagName;
-  if (sending || tag === 'INPUT' || tag === 'TEXTAREA' || !activeEpisodeId) return;
-  try { await loadEpisodeState(); } catch (e) { /* transient network hiccup, ignore */ }
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || !activeEpisodeId) return;
+  try { await loadEpisodeState(); } catch (e) { /* ignore */ }
 }, 6000);
 
-loadEpisodes();
+(async () => {
+  try { config = await api('/api/config'); } catch (e) { config = {}; }
+  renderPlane();
+  await loadEpisodes();
+})();
 </script>
 </body>
 </html>

@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from . import db, openrouter
 from .media_jobs import MEDIA_ROOT
 from .routes import chat as chat_routes
+from .routes import generate as generate_routes
 from .routes import jobs as jobs_routes
 from .routes import storyboard as storyboard_routes
 
@@ -23,6 +24,7 @@ app = FastAPI(title="movieMaker Cloud", lifespan=lifespan)
 app.include_router(storyboard_routes.router)
 app.include_router(chat_routes.router)
 app.include_router(jobs_routes.router)
+app.include_router(generate_routes.router)
 
 
 @app.get("/api/health")

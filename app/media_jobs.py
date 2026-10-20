@@ -17,12 +17,12 @@ import time
 from decimal import Decimal
 
 from . import db, openrouter, pricing
+from .defaults import DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL
 from .ids import new_id
 
 logger = logging.getLogger(__name__)
 
 MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "./data")
-DEFAULT_VIDEO_MODEL = "bytedance/seedance-2.0-mini"  # cheapest OpenRouter video model as of 2026-09-06
 VIDEO_POLL_SECONDS = 8
 VIDEO_TIMEOUT_SECONDS = 25 * 60
 _VIDEO_SEMAPHORE = asyncio.Semaphore(int(os.environ.get("OR_MAX_CONCURRENT_VIDEO", "2")))
@@ -66,8 +66,9 @@ async def _mark_job_failed(job_id: str, error: str) -> None:
 
 async def generate_reference_image(
     kind: str, entity_id: str, prompt: str, confirmed: bool = False,
-    model: str = "google/gemini-2.5-flash-image", resolution: str | None = None, n: int = 1,
+    model: str | None = None, resolution: str | None = None, n: int = 1,
 ) -> dict:
+    model = model or DEFAULT_IMAGE_MODEL
     if kind not in _ENTITY_TABLE:
         return {"error": f"unknown kind {kind!r}, expected 'character' or 'location'"}
     entity = await _get_entity(kind, entity_id)
@@ -268,7 +269,12 @@ async def _run_video_job(job_id: str) -> None:
             if payload.get("use_chain"):
                 frame_url = await _previous_chain_frame(scene)
                 if frame_url:
-                    submit_payload["frame_images"] = [{"image_url": frame_url, "frame_type": "first_frame"}]
+                    # OpenRouter Videos API expects type + nested image_url.url
+                    submit_payload["frame_images"] = [{
+                        "type": "image_url",
+                        "image_url": {"url": frame_url},
+                        "frame_type": "first_frame",
+                    }]
 
             res = await openrouter.submit_video(submit_payload)
             provider_job_id = res.get("id")

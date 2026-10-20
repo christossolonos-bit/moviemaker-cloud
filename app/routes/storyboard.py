@@ -5,6 +5,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from .. import storyboard
+from ..defaults import (
+    DEFAULT_SCENE_ASPECT_RATIO, DEFAULT_SCENE_DURATION, DEFAULT_SCENE_RESOLUTION,
+    DEFAULT_VIDEO_MODEL,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -46,15 +50,15 @@ class LocationUpdate(BaseModel):
 class SceneCreate(BaseModel):
     title: Optional[str] = None
     type: str = "dialogue"
-    duration: int = 5
-    resolution: str = "720p"
-    aspect_ratio: str = "16:9"
+    duration: int = DEFAULT_SCENE_DURATION
+    resolution: str = DEFAULT_SCENE_RESOLUTION
+    aspect_ratio: str = DEFAULT_SCENE_ASPECT_RATIO
     chain: Optional[bool] = None
     character_ids: Optional[list[str]] = None
     location_id: Optional[str] = None
     prompt: str = ""
     notes: str = ""
-    video_model: Optional[str] = None
+    video_model: Optional[str] = DEFAULT_VIDEO_MODEL
 
 
 class SceneUpdate(BaseModel):
@@ -70,6 +74,14 @@ class SceneUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     video_model: Optional[str] = None
+
+
+class LyricsImport(BaseModel):
+    lyrics: str
+    style: str = ""
+    duration: Optional[int] = None
+    chain: bool = True
+    replace_existing: bool = False
 
 
 def _or_404(row):
@@ -143,6 +155,17 @@ async def api_delete_location(location_id: str):
 @router.post("/episodes/{episode_id}/scenes")
 async def api_create_scene(episode_id: str, body: SceneCreate):
     return await storyboard.create_scene(episode_id, **body.model_dump())
+
+
+@router.post("/episodes/{episode_id}/from_lyrics")
+async def api_from_lyrics(episode_id: str, body: LyricsImport):
+    result = await storyboard.create_scenes_from_lyrics(
+        episode_id, body.lyrics, style=body.style, duration=body.duration,
+        chain=body.chain, replace_existing=body.replace_existing,
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 
 @router.patch("/scenes/{scene_id}")

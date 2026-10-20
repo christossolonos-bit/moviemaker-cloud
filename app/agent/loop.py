@@ -68,9 +68,9 @@ async def _build_system_prompt(thread: dict) -> str:
         "Before recommending or using an image model, call list_image_models; before recommending or "
         "using a video model, call list_video_models. Confirm it actually exists on OpenRouter right "
         "now — don't assume a model id (generate_scene_video falls back to the scene's own video_model "
-        "field, then to the pipeline default of bytedance/seedance-2.0-mini, chosen for being the "
-        "cheapest OpenRouter video model — verify that's still real/still cheapest before relying on "
-        "it, since OpenRouter's lineup and pricing change over time).",
+        "field, then to the pipeline default of minimax/hailuo-3 (MiniMax H3) — verify that's still "
+        "real before relying on it, since OpenRouter's lineup and pricing change over time). "
+        "H3 only accepts resolution \"2K\" and durations 5–15s.",
         "The user can pick a video model per scene: set/change scene.video_model via update_scene "
         "(or at create_scene time) so it's remembered and used on every future generate_scene_video "
         "call for that scene without repeating it; passing model= directly to generate_scene_video "

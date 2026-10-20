@@ -134,9 +134,9 @@ async def create_scene(
     *,
     title: str = "",
     type: str = "dialogue",
-    duration: int = 5,
-    resolution: str = "720p",
-    aspect_ratio: str = "16:9",
+    duration: int | None = None,
+    resolution: str | None = None,
+    aspect_ratio: str | None = None,
     chain: bool | None = None,
     character_ids: list[str] | None = None,
     location_id: str | None = None,
@@ -144,6 +144,15 @@ async def create_scene(
     notes: str = "",
     video_model: str | None = None,
 ) -> dict:
+    from .defaults import (
+        DEFAULT_SCENE_ASPECT_RATIO, DEFAULT_SCENE_DURATION, DEFAULT_SCENE_RESOLUTION,
+        DEFAULT_VIDEO_MODEL,
+    )
+    duration = DEFAULT_SCENE_DURATION if duration is None else duration
+    resolution = DEFAULT_SCENE_RESOLUTION if resolution is None else resolution
+    aspect_ratio = DEFAULT_SCENE_ASPECT_RATIO if aspect_ratio is None else aspect_ratio
+    if video_model is None:
+        video_model = DEFAULT_VIDEO_MODEL
     sid = new_id("sc")
     async with db.pool().acquire() as conn:
         async with conn.transaction():
@@ -240,3 +249,53 @@ async def get_full_episode(episode_id: str | None = None) -> dict | None:
     episode["characters"] = await list_characters(episode["id"])
     episode["locations"] = await list_locations(episode["id"])
     return episode
+
+
+async def create_scenes_from_lyrics(
+    episode_id: str,
+    lyrics: str,
+    *,
+    style: str = "",
+    duration: int | None = None,
+    chain: bool = True,
+    replace_existing: bool = False,
+) -> dict:
+    """One MiniMax H3 scene per lyric sentence/line. Stores raw lyric in notes."""
+    from .lyrics import split_lyric_units, visual_prompt_for_line
+
+    episode = await _get_row("episodes", "id", episode_id)
+    if episode is None:
+        return {"error": f"episode {episode_id} not found"}
+
+    units = split_lyric_units(lyrics)
+    if not units:
+        return {"error": "no lyric lines/sentences found"}
+
+    if replace_existing:
+        for scene in await list_scenes(episode_id):
+            await delete_scene(scene["id"])
+
+    if style:
+        await update_episode(episode_id, style=style, premise=episode.get("premise") or "Lyric music video")
+
+    created = []
+    for i, line in enumerate(units):
+        title = line if len(line) <= 48 else line[:45].rstrip() + "…"
+        scene = await create_scene(
+            episode_id,
+            title=title,
+            type="montage",
+            duration=duration,
+            chain=False if i == 0 else chain,
+            prompt=visual_prompt_for_line(line, style or episode.get("style") or ""),
+            notes=line,
+        )
+        created.append(scene)
+
+    return {
+        "episode_id": episode_id,
+        "count": len(created),
+        "scenes": created,
+        "message": f"Created {len(created)} scenes (one per lyric unit). "
+                   "Review prompts, then generate each with /api/scenes/{{id}}/generate.",
+    }

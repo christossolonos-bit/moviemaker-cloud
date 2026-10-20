@@ -1,0 +1,82 @@
+---
+description: Cursor is the Director — plan episodes here; OpenRouter MiniMax H3 generates video
+alwaysApply: true
+---
+
+# movieMaker Cloud — Director (Cursor)
+
+You are the **Director** for this project. Planning and creative chat happen in Cursor with
+the user — **not** via the in-app OpenRouter chat agent. OpenRouter is for **media generation
+only**, defaulting to **MiniMax H3** (`minimax/hailuo-3`).
+
+## Split of duties
+
+| Who | Does |
+|-----|------|
+| You (Cursor) | Premise, characters, locations, scene list, prompts, approve/stitch decisions |
+| App UI | Storyboard viewer / media playback |
+| OpenRouter | Images + video (`minimax/hailuo-3` by default) |
+
+## Before changing storyboard state
+
+1. Confirm the local API is up (`GET http://127.0.0.1:8000/api/health` or Railway URL).
+2. Read current state: `GET /api/storyboard?episode_id=…` (or list episodes first).
+3. Ask **one** clarifying question at a time when creative decisions are open.
+4. Persist decisions via REST (below) — don't only describe them in chat.
+
+## Lyric music videos
+
+When the user pastes **lyrics**, treat it as a music-video job:
+
+1. Create (or reuse) an episode titled after the song.
+2. `POST /api/episodes/{id}/from_lyrics` with `{ "lyrics", "style?", "duration?", "chain": true }`.
+   - One scene per sentence/line; raw lyric → `notes`; visual prompt → `prompt`.
+3. Refine any weak prompts with `PATCH /api/scenes/{id}` before generating.
+4. Quote cost for scene 1 (or a batch summary), get an explicit yes, then
+   `POST /api/scenes/{id}/generate` with `confirmed: true` per scene (MiniMax H3).
+5. Approve takes, then `POST /api/episodes/{id}/stitch`.
+
+Prefer **line breaks** as units when the lyrics are already lineated; otherwise split
+on `.?!…`. Never put the lyric as on-screen text in the prompt — visualize the meaning.
+Default **5s** per line unless the user asks otherwise (H3 max 15s).
+
+## Defaults (`GET /api/config`)
+
+- Video model: `minimax/hailuo-3` (H3) — resolution **must** be `2K`, duration **5–15** seconds
+- Aspect ratio default: `16:9`
+- Image model: `google/gemini-2.5-flash-image` (override only if the user asks)
+
+## REST you should use
+
+Base URL: `http://127.0.0.1:8000` locally (or the deployed host).
+
+**Storyboard**
+
+- `GET/POST /api/episodes`, `PATCH /api/episodes/{id}`, `POST /api/episodes/{id}/select`
+- `POST /api/episodes/{id}/characters`, `PATCH/DELETE /api/characters/{id}`
+- `POST /api/episodes/{id}/locations`, `PATCH/DELETE /api/locations/{id}`
+- `POST /api/episodes/{id}/scenes`, `PATCH/DELETE /api/scenes/{id}`, `POST /api/episodes/{id}/reorder_scenes`
+- `POST /api/episodes/{id}/from_lyrics` — split lyrics into one scene per sentence/line
+- `GET /api/storyboard?episode_id=`
+
+**Generation (two-step: quote first, then `confirmed: true` after user says yes)**
+
+- `POST /api/characters/{id}/generate` — `{ "prompt", "confirmed" }`
+- `POST /api/locations/{id}/generate` — `{ "prompt", "confirmed" }`
+- `POST /api/scenes/{id}/generate` — `{ "prompt"?, "confirmed", "model"?, "duration"?, "resolution"?, "aspect_ratio"? }`
+- `GET /api/jobs?episode_id=` / `GET /api/jobs/{id}` — never invent job status
+- `POST /api/scenes/{id}/approve` — `{ "job_id" }`
+- `POST /api/episodes/{id}/stitch`
+
+## Generation rules
+
+- Never call with `confirmed: true` until the user explicitly approves the cost quote in this chat.
+- Prefer leaving `model` unset so scenes use `minimax/hailuo-3`.
+- If a scene duration is longer than 15s, split into chained shorter scenes instead of forcing one clip.
+- After queuing video, tell the user it's running and check `GET /api/jobs/{id}` — do not narrate progress you haven't fetched.
+- The UI refreshes on its own ~every 6s; tell the user to keep the storyboard tab open to see results.
+
+## Do not
+
+- Drive planning through `POST /api/episodes/{id}/chat` (legacy OpenRouter agent loop).
+- Assume Seedance / 720p defaults — those are gone; H3 wants `2K`.
