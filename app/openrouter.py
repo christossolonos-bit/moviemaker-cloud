@@ -24,7 +24,8 @@ async def chat_completion(model: str, messages: list[dict], tools: list[dict] | 
     if tools:
         payload["tools"] = tools
         payload["tool_choice"] = tool_choice
-    async with httpx.AsyncClient(timeout=120) as client:
+    # Director turns can include several tool rounds; keep this generous.
+    async with httpx.AsyncClient(timeout=180) as client:
         r = await client.post(f"{BASE_URL}/chat/completions", json=payload, headers=_headers())
         if r.status_code >= 400:
             raise RuntimeError(f"OpenRouter chat error {r.status_code}: {r.text[:500]}")

@@ -33,13 +33,22 @@ class GenerateVideo(BaseModel):
 
 @router.get("/config")
 async def api_config():
+    from .. import account as account_mod
+    try:
+        acct = await account_mod.get_account_public()
+        video = acct.get("video_model") or DEFAULT_VIDEO_MODEL
+        image = acct.get("image_model") or DEFAULT_IMAGE_MODEL
+    except Exception:
+        video, image = DEFAULT_VIDEO_MODEL, DEFAULT_IMAGE_MODEL
+        acct = None
     return {
-        "planner": "cursor",
-        "default_video_model": DEFAULT_VIDEO_MODEL,
-        "default_image_model": DEFAULT_IMAGE_MODEL,
+        "planner": "director",
+        "default_video_model": video,
+        "default_image_model": image,
         "default_scene_resolution": DEFAULT_SCENE_RESOLUTION,
         "default_scene_aspect_ratio": DEFAULT_SCENE_ASPECT_RATIO,
         "default_scene_duration": DEFAULT_SCENE_DURATION,
+        "account": acct,
     }
 
 

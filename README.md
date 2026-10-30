@@ -1,19 +1,18 @@
 # movieMaker Cloud
 
-Chat-first movie production studio. **Planning happens in Cursor** (this repo's
-Director agent). **Video generation goes through OpenRouter MiniMax H3**
+Chat-first movie production studio. **Director chat lives in the website UI**
+(left panel). **Video generation goes through OpenRouter MiniMax H3**
 ([`minimax/hailuo-3`](https://openrouter.ai/minimax/hailuo-3)). No local GPU, no ComfyUI.
 
-The browser UI is a storyboard + media viewer. Creative back-and-forth, scene
-structure, and generation confirmations live in the Cursor chat.
+The browser shows Director chat + live storyboard/media. The Director quotes cost
+before any generate; you confirm in chat, then takes appear on the storyboard.
 
 ## Status
 
-- Storyboard CRUD, image/video jobs, approve/stitch, and Cursor-driven generation
-  REST are in place.
+- Storyboard CRUD, image/video jobs, approve/stitch, and Director chat
+  (`/api/episodes/{id}/chat`) are in place.
 - Default video model: **MiniMax H3** (`2K`, 5–15s clips).
-- Legacy in-app OpenRouter chat agent routes still exist under `/api/.../chat` but
-  are not used by the UI.
+- Cursor can still drive the same REST API for power users / Lyra offline shoots.
 
 ## Running locally
 

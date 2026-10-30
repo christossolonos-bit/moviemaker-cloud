@@ -144,3 +144,25 @@ CREATE TABLE IF NOT EXISTS model_pricing_cache (
   fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (model_id, kind)
 );
+
+-- Single local workspace account until auth/Stripe. Credits top up on subscribe.
+CREATE TABLE IF NOT EXISTS accounts (
+  id TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL DEFAULT 'Director',
+  plan_id TEXT NOT NULL DEFAULT 'trial',
+  credits INTEGER NOT NULL DEFAULT 150,
+  video_model TEXT NOT NULL DEFAULT 'minimax/hailuo-3',
+  image_model TEXT NOT NULL DEFAULT 'google/gemini-2.5-flash-image',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  delta INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  meta JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS credit_ledger_account ON credit_ledger (account_id, created_at DESC);

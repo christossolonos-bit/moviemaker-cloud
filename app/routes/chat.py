@@ -31,9 +31,15 @@ async def api_get_episode_chat(episode_id: str):
 
 @router.post("/episodes/{episode_id}/chat")
 async def api_post_episode_chat(episode_id: str, body: ChatSend):
+    ep = await storyboard.get_full_episode(episode_id)
+    if ep is None:
+        raise HTTPException(status_code=404, detail="episode not found")
     thread = await chat.get_or_create_planning_thread(episode_id)
     thread = await _apply_model(thread, body.model)
-    reply = await run_agent_turn(thread["id"], body.message)
+    try:
+        reply = await run_agent_turn(thread["id"], body.message)
+    except Exception as e:  # noqa: BLE001 — surface to UI
+        raise HTTPException(status_code=502, detail=f"Director failed: {e}") from e
     return {"thread_id": thread["id"], "reply": reply}
 
 

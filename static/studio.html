@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio — movieMaker Director</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1014; --bg2: #151821; --bg3: #1a1e28; --line: #2a303c;
+    --text: #eceef2; --muted: #8b92a3; --dim: #5c6475;
+    --accent: #e8a54b; --accent-dim: #b87a2e;
+    --ok: #3d9a6a; --ok-bg: #163526; --chat: #243352;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font: 14px/1.45 "DM Sans", system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  a { color: inherit; }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 16px; height: 54px;
+    background: var(--bg2); border-bottom: 1px solid var(--line);
+  }
+  .brand {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 20px; margin: 0; white-space: nowrap;
+  }
+  .brand span { color: var(--accent); font-style: italic; }
+  .brand a { text-decoration: none; }
+  header select, header button, .btn {
+    background: var(--bg3); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 11px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  header button:hover, .btn:hover { border-color: var(--muted); }
+  header button.primary, .btn.primary {
+    background: var(--accent); color: #1a1206; border-color: var(--accent); font-weight: 600;
+  }
+  .spacer { flex: 1; }
+  .credits-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: #1c2118; border: 1px solid #3a4a30; border-radius: 999px;
+    padding: 5px 12px; font-size: 12.5px; white-space: nowrap;
+  }
+  .credits-pill strong { color: #b8e0a8; font-variant-numeric: tabular-nums; }
+  .credits-pill a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .model-bar {
+    display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted);
+  }
+  .model-bar select { max-width: 200px; font-size: 12px; padding: 5px 8px; }
+  .status { font-size: 12px; color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .shell { display: grid; grid-template-columns: 260px 1fr 340px; height: calc(100vh - 54px); }
+  @media (max-width: 1100px) {
+    .shell { grid-template-columns: 220px 1fr; }
+    .chatcol { display: none; }
+    .shell.chat-open { grid-template-columns: 1fr 340px; }
+    .shell.chat-open .navcol { display: none; }
+    .shell.chat-open .chatcol { display: flex; }
+  }
+
+  .navcol { background: var(--bg2); border-right: 1px solid var(--line); overflow-y: auto; padding: 14px 10px 24px; }
+  .navcol h3 { margin: 16px 8px 8px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .navcol h3:first-child { margin-top: 4px; }
+  .act {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: 1px solid transparent;
+    border-radius: 8px; padding: 9px 10px; margin-bottom: 2px;
+    color: var(--text); cursor: pointer; font: inherit;
+  }
+  .act:hover { background: var(--bg3); border-color: var(--line); }
+  .act.active { background: #242a36; border-color: var(--accent-dim); }
+  .act .t { display: block; font-weight: 600; font-size: 13px; }
+  .act .d { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+
+  .stage {
+    overflow-y: auto; padding: 20px 22px 40px;
+    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(232,165,75,.08), transparent), var(--bg);
+  }
+  .stage-hero h2 {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 30px; font-weight: 400; margin: 0 0 6px; letter-spacing: -0.02em;
+  }
+  .stage-hero p { margin: 0 0 18px; color: var(--muted); max-width: 36em; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    background: transparent; border: 1px solid var(--line);
+    color: var(--muted); border-radius: 999px; padding: 6px 14px;
+    font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .tab.on { background: var(--bg3); color: var(--text); border-color: var(--muted); }
+  .panel { display: none; }
+  .panel.on { display: block; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--bg2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .card h4 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+  .card .title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .card .meta { font-size: 12px; color: var(--muted); }
+  .card .body { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .card .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .pill {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: #2a303c; color: var(--muted);
+  }
+  .pill.ok { background: var(--ok-bg); color: #9eecc0; }
+  .entity { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .entity:last-child { border-bottom: none; }
+  .thumb {
+    width: 64px; height: 64px; border-radius: 8px; object-fit: cover;
+    background: #0a0b0e; flex: 0 0 auto;
+  }
+  .thumb.ph {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--dim); text-align: center; padding: 4px;
+    border: 1px dashed var(--line);
+  }
+  .empty { color: var(--dim); font-style: italic; padding: 12px 0; }
+  .take { background: #0a0b0e; border-radius: 8px; padding: 8px; margin-top: 8px; }
+  .take video { width: 100%; border-radius: 6px; display: block; max-height: 280px; background: #000; }
+  .take .ops { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .form label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .form input, .form textarea, .form select {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font: inherit;
+  }
+  .form textarea { min-height: 72px; resize: vertical; }
+  .form .hint { font-size: 11px; color: var(--dim); margin-top: 4px; }
+  .model-row {
+    display: flex; justify-content: space-between; gap: 12px; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .model-row:last-child { border-bottom: none; }
+  .model-row .id { font-weight: 600; word-break: break-all; }
+  .model-row .price { color: var(--muted); font-size: 12px; }
+
+  .chatcol { display: flex; flex-direction: column; background: var(--bg2); border-left: 1px solid var(--line); }
+  .chathead { padding: 14px 14px 10px; border-bottom: 1px solid var(--line); }
+  .chathead h3 { margin: 0; font-size: 13px; font-weight: 600; }
+  .chathead p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+  .msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .bubble {
+    max-width: 94%; padding: 10px 12px; border-radius: 12px;
+    white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.45;
+  }
+  .bubble.user { align-self: flex-end; background: var(--chat); border-bottom-right-radius: 4px; }
+  .bubble.assistant { align-self: flex-start; background: var(--bg3); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .bubble.system { align-self: center; color: var(--dim); font-size: 12px; font-style: italic; background: transparent; padding: 4px; }
+  .bubble .who { display: block; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
+  .composer textarea {
+    flex: 1; min-height: 48px; max-height: 140px; resize: vertical;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; font: inherit;
+  }
+  .composer button {
+    background: var(--accent); color: #1a1206; border: none; border-radius: 10px;
+    padding: 0 14px; font-weight: 700; cursor: pointer;
+  }
+  .composer button:disabled { opacity: .4; cursor: default; }
+  .typing { color: var(--muted); font-size: 12px; }
+  .fab-chat {
+    display: none; position: fixed; right: 16px; bottom: 16px; z-index: 20;
+    background: var(--accent); color: #1a1206; border: none; border-radius: 999px;
+    padding: 12px 18px; font-weight: 700; font: inherit; cursor: pointer;
+  }
+  @media (max-width: 1100px) { .fab-chat { display: block; } }
+</style>
+</head>
+<body>
+<header>
+  <h1 class="brand"><a href="/">movieMaker <span>Director</span></a></h1>
+  <select id="epPick" title="Episode"></select>
+  <button id="epNew" type="button">+ Episode</button>
+  <div class="spacer"></div>
+  <div class="model-bar" title="Preferred models for this account">
+    <span>Video</span>
+    <select id="videoModel"></select>
+    <span>Image</span>
+    <select id="imageModel"></select>
+  </div>
+  <div class="credits-pill" id="creditsPill">
+    <span>Credits</span> <strong id="creditsVal">—</strong>
+    <a href="/#pricing">Upgrade</a>
+  </div>
+  <span class="status" id="status"></span>
+</header>
+
+<div class="shell" id="shell">
+  <aside class="navcol" id="navcol"></aside>
+  <main class="stage" id="stage"></main>
+  <aside class="chatcol" id="chatcol">
+    <div class="chathead">
+      <h3>Director chat</h3>
+      <p>Quotes before generate · uses your selected models</p>
+    </div>
+    <div class="msgs" id="msgs"></div>
+    <div class="composer">
+      <textarea id="chatInput" rows="2" placeholder="Talk to the Director…" disabled></textarea>
+      <button id="chatSend" type="button" disabled>Send</button>
+    </div>
+  </aside>
+</div>
+<button class="fab-chat" id="fabChat" type="button">Chat</button>
+
+<script>
+const $ = id => document.getElementById(id);
+const ACTIONS = [
+  { group: 'Episode', items: [
+    { id: 'bible', title: 'Episode bible', desc: 'Title, premise, visual style', tab: 'bible', prompt: 'Let\'s lock the episode bible — title, premise, and visual style.' },
+    { id: 'read', title: 'Read storyboard', desc: 'Refresh what\'s locked so far', tab: 'overview', prompt: 'Please read the current storyboard and summarize what we have.' },
+  ]},
+  { group: 'Cast & sets', items: [
+    { id: 'char_add', title: 'Add character', desc: 'Name + look description', tab: 'characters', prompt: 'I want to add a new character. Ask me for what you need.' },
+    { id: 'char_img', title: 'Character portrait', desc: 'Generate reference still (quoted)', tab: 'characters', prompt: 'Quote a character reference portrait for the character we should lock next, then wait for my yes.' },
+    { id: 'loc_add', title: 'Add location', desc: 'Set / room / world', tab: 'locations', prompt: 'I want to add a location/set. Ask me one question at a time.' },
+    { id: 'loc_img', title: 'Location still', desc: 'Generate set reference (quoted)', tab: 'locations', prompt: 'Quote a location still for our main set, then wait for my yes.' },
+  ]},
+  { group: 'Scenes', items: [
+    { id: 'scene_add', title: 'Add scene', desc: 'Dialogue, action, establishing…', tab: 'scenes', prompt: 'Add a new scene to the timeline. Ask what the beat is.' },
+    { id: 'lyrics', title: 'From lyrics', desc: 'One scene per line / sentence', tab: 'scenes', prompt: 'I\'ll paste lyrics next — split into one scene per line with visual prompts (no on-screen text).' },
+    { id: 'reorder', title: 'Reorder scenes', desc: 'Change shoot / edit order', tab: 'scenes', prompt: 'Help me reorder the scenes. Show the current order first.' },
+    { id: 'chain', title: 'Chain frames', desc: 'Continue from previous last frame', tab: 'scenes', prompt: 'For the next scene, use chain continuity from the previous scene\'s last frame.' },
+  ]},
+  { group: 'Generate', items: [
+    { id: 'video', title: 'Generate scene video', desc: 'Selected model · quote then confirm', tab: 'scenes', prompt: 'Quote cost to generate video for the scene we should shoot next using my selected video model, then wait for my yes.' },
+    { id: 'models', title: 'Browse models', desc: 'Pick video & image online', tab: 'models', prompt: null },
+    { id: 'jobs', title: 'Check jobs', desc: 'Status of renders in flight', tab: 'jobs', prompt: 'Check current jobs for this episode and tell me what\'s done or failing.' },
+  ]},
+  { group: 'Finish', items: [
+    { id: 'approve', title: 'Approve take', desc: 'Lock a completed clip', tab: 'scenes', prompt: 'Which completed takes should we approve? Summarize options.' },
+    { id: 'stitch', title: 'Stitch episode', desc: 'Concatenate approved scenes', tab: 'overview', prompt: 'Stitch all approved scene takes into the final episode file.' },
+    { id: 'storage', title: 'Storage cleanup', desc: 'Usage / delete rejected takes', tab: 'tools', prompt: 'Show storage usage and suggest what rejected takes we can safely delete (quote first).' },
+    { id: 'billing', title: 'Credits & plan', desc: 'Balance and upgrade', tab: 'billing', prompt: null },
+  ]},
+];
+
+let episodes = [], activeEpisodeId = null, storyboard = null, config = null, account = null;
+let videoModels = [], imageModels = [];
+let jobsByScene = {}, chatMessages = [], chatBusy = false;
+let activeAction = 'bible', activeTab = 'overview';
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    let detail = r.statusText;
+    try { const j = await r.json(); detail = j.detail || JSON.stringify(j); } catch (_) {}
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+function findAction(id) {
+  for (const g of ACTIONS) {
+    const hit = g.items.find(i => i.id === id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function renderCredits() {
+  const el = $('creditsVal');
+  if (!account) { el.textContent = '—'; return; }
+  el.textContent = Number(account.credits).toLocaleString();
+  const planName = account.plan?.name || account.plan_id;
+  $('creditsPill').title = `${planName} plan`;
+}
+
+function fillModelSelect(sel, models, current) {
+  const ids = models.map(m => (typeof m === 'string' ? m : m.id)).filter(Boolean);
+  if (current && !ids.includes(current)) ids.unshift(current);
+  if (!ids.length && current) ids.push(current);
+  sel.innerHTML = ids.map(id =>
+    `<option value="${escapeHtml(id)}" ${id === current ? 'selected' : ''}>${escapeHtml(id)}</option>`
+  ).join('');
+}
+
+async function saveModels() {
+  const video_model = $('videoModel').value;
+  const image_model = $('imageModel').value;
+  account = await api('/api/account/models', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_model, image_model }),
+  });
+  renderCredits();
+  $('status').textContent = 'Models saved';
+  setTimeout(() => { if ($('status').textContent === 'Models saved') $('status').textContent = ''; }, 1600);
+}
+
+function renderNav() {
+  $('navcol').innerHTML = ACTIONS.map(g => `
+    <h3>${escapeHtml(g.group)}</h3>
+    ${g.items.map(a => `
+      <button type="button" class="act ${activeAction === a.id ? 'active' : ''}" data-act="${a.id}">
+        <span class="t">${escapeHtml(a.title)}</span>
+        <span class="d">${escapeHtml(a.desc)}</span>
+      </button>`).join('')}
+  `).join('');
+  $('navcol').querySelectorAll('.act').forEach(btn => {
+    btn.onclick = () => selectAction(btn.dataset.act);
+  });
+}
+
+function selectAction(id) {
+  const a = findAction(id);
+  if (!a) return;
+  activeAction = id;
+  activeTab = a.tab || activeTab;
+  renderNav();
+  renderStage();
+  if (a.prompt && activeEpisodeId) {
+    $('chatInput').value = a.prompt;
+    $('chatInput').focus();
+    $('shell').classList.add('chat-open');
+  }
+}
+
+function modelListHtml(kind) {
+  const list = kind === 'video' ? videoModels : imageModels;
+  const current = kind === 'video' ? account?.video_model : account?.image_model;
+  if (!list.length) return '<div class="empty">Models loading…</div>';
+  return list.slice(0, 40).map(m => {
+    const id = m.id || m;
+    const skus = m.pricing_skus || {};
+    const rate = skus.generate || Object.values(skus)[0];
+    const price = rate != null ? `~$${rate}/unit` : (m.pricing ? JSON.stringify(m.pricing).slice(0, 40) : '');
+    const on = id === current;
+    return `<div class="model-row">
+      <div>
+        <div class="id">${escapeHtml(id)} ${on ? '<span class="pill ok">selected</span>' : ''}</div>
+        <div class="price">${escapeHtml(price)}</div>
+      </div>
+      <button type="button" class="btn ${on ? 'primary' : ''}" data-pick-${kind}="${escapeHtml(id)}">${on ? 'Using' : 'Use'}</button>
+    </div>`;
+  }).join('');
+}
+
+function renderStage() {
+  const ep = storyboard && storyboard.episode;
+  const chars = (storyboard && storyboard.characters) || [];
+  const locs = (storyboard && storyboard.locations) || [];
+  const scenes = (storyboard && storyboard.scenes) || [];
+  const cfg = config || {};
+  const act = findAction(activeAction);
+  const plan = account?.plan;
+
+  $('stage').innerHTML = `
+    <div class="stage-hero">
+      <h2>${ep ? escapeHtml(ep.title) : 'No episode yet'}</h2>
+      <p>${ep
+        ? escapeHtml(ep.premise || 'No premise locked — use Episode bible or ask the Director.')
+        : 'Create an episode, pick models above, then use Director actions. Credits only spend after you confirm a quote.'}</p>
+    </div>
+    <div class="tabs">
+      ${[['overview','Overview'],['bible','Bible'],['characters','Characters'],['locations','Locations'],['scenes','Scenes'],['models','Models'],['jobs','Jobs'],['billing','Credits'],['tools','Tools']]
+        .map(([id, label]) => `<button type="button" class="tab ${activeTab===id?'on':''}" data-tab="${id}">${label}</button>`).join('')}
+    </div>
+
+    <section class="panel ${activeTab==='overview'?'on':''}">
+      <div class="grid2">
+        <div class="card">
+          <h4>Shoot status</h4>
+          <div class="title">${chars.length} characters · ${locs.length} locations · ${scenes.length} scenes</div>
+          <div class="meta">${scenes.filter(s=>s.approved_take_id).length} approved · video ${escapeHtml(account?.video_model||cfg.default_video_model||'—')} · ${cfg.default_scene_duration||5}s · ${escapeHtml(cfg.default_scene_resolution||'2K')}</div>
+          <div class="row">
+            <button type="button" class="btn primary" data-go="video">Generate next clip</button>
+            <button type="button" class="btn" data-go="stitch">Stitch episode</button>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Account</h4>
+          <div class="title">${plan ? escapeHtml(plan.name) : '—'} · <strong>${account ? Number(account.credits).toLocaleString() : '—'}</strong> credits</div>
+          <div class="body">Selected action: ${act ? escapeHtml(act.title) : '—'}. Actions pre-fill Director chat.</div>
+          <div class="row"><button type="button" class="btn" data-go="billing">Manage credits</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='bible'?'on':''}">
+      <div class="card form">
+        <h4>Episode bible</h4>
+        <label>Title</label>
+        <input id="fTitle" value="${escapeHtml(ep?.title||'')}" ${ep?'':'disabled'}>
+        <label>Premise</label>
+        <textarea id="fPremise" ${ep?'':'disabled'}>${escapeHtml(ep?.premise||'')}</textarea>
+        <label>Style</label>
+        <textarea id="fStyle" ${ep?'':'disabled'}>${escapeHtml(ep?.style||'')}</textarea>
+        <div class="row">
+          <button type="button" class="btn primary" id="saveBible" ${ep?'':'disabled'}>Ask Director to save</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='characters'?'on':''}">
+      <div class="card">
+        <div class="row" style="margin-top:0;margin-bottom:8px;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Characters</h4>
+          <button type="button" class="btn" data-go="char_add">+ Add</button>
+        </div>
+        ${chars.length ? chars.map(c => entityHtml(c, 'character')).join('') : '<div class="empty">No characters yet</div>'}
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='locations'?'on':''}">
+      <div class="card">
+        <div class="row" style="margin-top:0;margin-bottom:8px;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Locations</h4>
+          <button type="button" class="btn" data-go="loc_add">+ Add</button>
+        </div>
+        ${locs.length ? locs.map(l => entityHtml(l, 'location')).join('') : '<div class="empty">No locations yet</div>'}
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='scenes'?'on':''}">
+      <div class="card">
+        <div class="row" style="margin-top:0;margin-bottom:8px;justify-content:flex-end;gap:8px">
+          <button type="button" class="btn" data-go="lyrics">From lyrics</button>
+          <button type="button" class="btn" data-go="scene_add">+ Scene</button>
+          <button type="button" class="btn primary" data-go="video">Generate video</button>
+        </div>
+        ${scenes.length ? scenes.map((s,i) => sceneHtml(s,i)).join('') : '<div class="empty">No scenes yet</div>'}
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='models'?'on':''}">
+      <div class="grid2">
+        <div class="card">
+          <h4>Video models</h4>
+          <div class="meta" style="margin-bottom:8px">Live catalog · selection saves to your account</div>
+          ${modelListHtml('video')}
+        </div>
+        <div class="card">
+          <h4>Image models</h4>
+          <div class="meta" style="margin-bottom:8px">Portraits &amp; location stills</div>
+          ${modelListHtml('image')}
+        </div>
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='jobs'?'on':''}">
+      <div class="card">
+        <h4>Recent video jobs</h4>
+        ${renderJobsList()}
+        <div class="row"><button type="button" class="btn" data-go="jobs">Ask Director to check jobs</button></div>
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='billing'?'on':''}">
+      <div class="card">
+        <h4>Credits &amp; plan</h4>
+        <div class="title">${plan ? escapeHtml(plan.name) : '—'} · ${account ? Number(account.credits).toLocaleString() : '—'} credits</div>
+        <div class="body">100 credits ≈ $1 of generation. Quotes show cost before spend. Full Stripe checkout comes next — plans activate instantly for this demo.</div>
+        <div class="row">
+          <a class="btn primary" href="/#pricing">Change plan</a>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Available plans</h4>
+        ${(account?.plans || []).map(p => `
+          <div class="model-row">
+            <div>
+              <div class="id">${escapeHtml(p.name)} · $${p.price_usd}/mo</div>
+              <div class="price">${Number(p.credits).toLocaleString()} credits · ${escapeHtml(p.tagline)}</div>
+            </div>
+            <button type="button" class="btn" data-sub="${p.id}">${account?.plan_id===p.id?'Current':'Get'}</button>
+          </div>`).join('') || '<div class="empty">Loading plans…</div>'}
+      </div>
+    </section>
+
+    <section class="panel ${activeTab==='tools'?'on':''}">
+      <div class="card">
+        <h4>Storage</h4>
+        <div class="body">Preview freeable bytes before delete — Director quotes first.</div>
+        <div class="row"><button type="button" class="btn" data-go="storage">Storage cleanup</button></div>
+      </div>
+    </section>
+  `;
+
+  $('stage').querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => { activeTab = t.dataset.tab; renderStage(); };
+  });
+  $('stage').querySelectorAll('[data-go]').forEach(b => {
+    b.onclick = () => selectAction(b.dataset.go);
+  });
+  $('stage').querySelectorAll('[data-pick-video]').forEach(b => {
+    b.onclick = async () => {
+      $('videoModel').value = b.dataset.pickVideo;
+      await saveModels();
+      renderStage();
+    };
+  });
+  $('stage').querySelectorAll('[data-pick-image]').forEach(b => {
+    b.onclick = async () => {
+      $('imageModel').value = b.dataset.pickImage;
+      await saveModels();
+      renderStage();
+    };
+  });
+  $('stage').querySelectorAll('[data-sub]').forEach(b => {
+    b.onclick = async () => {
+      account = await api('/api/account/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_id: b.dataset.sub }),
+      });
+      renderCredits();
+      renderStage();
+    };
+  });
+  const save = $('saveBible');
+  if (save) save.onclick = () => {
+    queueChat(`Update the episode bible to:\nTitle: ${$('fTitle').value.trim()}\nPremise: ${$('fPremise').value.trim()}\nStyle: ${$('fStyle').value.trim()}`);
+  };
+  $('stage').querySelectorAll('button.approve').forEach(btn => {
+    btn.onclick = async () => {
+      await api(`/api/scenes/${btn.dataset.scene}/approve`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ job_id: btn.dataset.job }),
+      });
+      await loadEpisodeState();
+    };
+  });
+  $('stage').querySelectorAll('[data-gen-char]').forEach(b => {
+    b.onclick = () => queueChat(`Quote a reference portrait for character "${b.dataset.genChar}" using my selected image model, then wait for my yes.`);
+  });
+  $('stage').querySelectorAll('[data-gen-loc]').forEach(b => {
+    b.onclick = () => queueChat(`Quote a location still for "${b.dataset.genLoc}" using my selected image model, then wait for my yes.`);
+  });
+  $('stage').querySelectorAll('[data-gen-scene]').forEach(b => {
+    b.onclick = () => queueChat(`Quote video generation for scene "${b.dataset.genScene}" with my selected video model, then wait for my yes.`);
+  });
+}
+
+function entityHtml(e, kind) {
+  const img = e.reference_image_path
+    ? `<a href="/media/${e.reference_image_path}" target="_blank"><img class="thumb" src="/media/${e.reference_image_path}?v=${(e.updated_at||'').slice(0,19)}"></a>`
+    : `<div class="thumb ph">no image</div>`;
+  const gen = kind === 'character'
+    ? `<button type="button" class="btn" data-gen-char="${escapeHtml(e.name)}">Portrait…</button>`
+    : `<button type="button" class="btn" data-gen-loc="${escapeHtml(e.name)}">Still…</button>`;
+  return `<div class="entity">${img}<div style="flex:1;min-width:0">
+    <div class="title">${escapeHtml(e.name)}</div>
+    <div class="meta">${escapeHtml(e.description||'')}</div>
+    <div class="row">${gen}</div>
+  </div></div>`;
+}
+
+function sceneHtml(s, i) {
+  const takes = (jobsByScene[s.id] || []).map(j => takeHtml(j, s)).join('');
+  return `<div class="entity" style="flex-direction:column">
+    <div>
+      <div class="title">${i+1}. ${escapeHtml(s.title)}
+        <span class="pill ${s.approved_take_id?'ok':''}">${escapeHtml(s.status)}</span>
+      </div>
+      <div class="meta">${escapeHtml(s.type)} · ${s.duration}s · ${escapeHtml(s.resolution)}${s.chain?' · chained':''}${s.video_model?' · '+escapeHtml(s.video_model):''}</div>
+      ${s.prompt ? `<div class="body">${escapeHtml(s.prompt)}</div>` : ''}
+      <div class="row">
+        <button type="button" class="btn primary" data-gen-scene="${escapeHtml(s.title)}">Generate…</button>
+      </div>
+      ${takes}
+    </div>
+  </div>`;
+}
+
+function takeHtml(job, scene) {
+  if (job.status !== 'completed' || !job.media_path) {
+    return `<div class="take"><div class="ops">${escapeHtml(job.status)}${job.error?' — '+escapeHtml(job.error):''} · <code>${job.id}</code></div></div>`;
+  }
+  const approved = scene.approved_take_id === job.id;
+  return `<div class="take">
+    <video controls src="/media/${job.media_path}"></video>
+    <div class="ops">
+      <code>${job.id}</code>
+      ${approved ? '<span class="pill ok">approved</span>'
+        : `<button type="button" class="btn approve" data-scene="${scene.id}" data-job="${job.id}">Approve</button>`}
+    </div>
+  </div>`;
+}
+
+function renderJobsList() {
+  const all = Object.values(jobsByScene).flat();
+  if (!all.length) return '<div class="empty">No video jobs yet</div>';
+  return all.slice(0, 30).map(j =>
+    `<div class="meta" style="padding:6px 0;border-bottom:1px solid var(--line)">
+      <span class="pill ${j.status==='completed'?'ok':''}">${escapeHtml(j.status)}</span>
+      ${escapeHtml(j.scene_id||'')} · <code>${j.id}</code>
+    </div>`
+  ).join('');
+}
+
+function visibleChatMessages(rows) {
+  return (rows || []).filter(m =>
+    (m.role === 'user' || m.role === 'assistant') &&
+    (m.content || '').trim() && !m.tool_calls
+  );
+}
+
+function renderChat() {
+  const box = $('msgs');
+  if (!activeEpisodeId) {
+    box.innerHTML = '<div class="bubble system">Create or select an episode to start.</div>';
+    return;
+  }
+  const vis = visibleChatMessages(chatMessages);
+  box.innerHTML = vis.length
+    ? vis.map(m => `<div class="bubble ${m.role}"><span class="who">${m.role==='user'?'You':'Director'}</span>${escapeHtml(m.content)}</div>`).join('')
+    : '<div class="bubble system">Pick an action on the left, or just type. Director asks one question at a time.</div>';
+  if (chatBusy) box.innerHTML += '<div class="typing">Director is working…</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+async function loadChat() {
+  if (!activeEpisodeId) { chatMessages = []; renderChat(); return; }
+  const data = await api(`/api/episodes/${activeEpisodeId}/chat`);
+  chatMessages = data.messages || [];
+  renderChat();
+}
+
+function setComposerEnabled(on) {
+  $('chatInput').disabled = !on || !activeEpisodeId;
+  $('chatSend').disabled = !on || !activeEpisodeId;
+}
+
+function queueChat(text) {
+  if (!activeEpisodeId) { alert('Create an episode first'); return; }
+  $('chatInput').value = text;
+  $('shell').classList.add('chat-open');
+  $('chatInput').focus();
+}
+
+async function sendChat() {
+  if (!activeEpisodeId || chatBusy) return;
+  const input = $('chatInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  chatBusy = true;
+  input.value = '';
+  setComposerEnabled(false);
+  chatMessages = [...chatMessages, { role: 'user', content: text }];
+  renderChat();
+  $('status').textContent = 'Director thinking…';
+  try {
+    const res = await api(`/api/episodes/${activeEpisodeId}/chat`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: text }),
+    });
+    if (res.reply && res.reply.content) chatMessages = [...chatMessages, res.reply];
+    else await loadChat();
+    await loadEpisodeState();
+    account = await api('/api/account');
+    renderCredits();
+    $('status').textContent = '';
+  } catch (e) {
+    chatMessages = [...chatMessages, { role: 'assistant', content: `(Director error) ${e.message}` }];
+    $('status').textContent = e.message;
+  } finally {
+    chatBusy = false;
+    setComposerEnabled(true);
+    renderChat();
+  }
+}
+
+async function loadEpisodeState() {
+  if (!activeEpisodeId) return;
+  storyboard = await api(`/api/storyboard?episode_id=${activeEpisodeId}`);
+  const videoJobs = await api(`/api/jobs?episode_id=${activeEpisodeId}&type=video&limit=200`);
+  jobsByScene = {};
+  for (const j of videoJobs) (jobsByScene[j.scene_id] ||= []).push(j);
+  renderStage();
+}
+
+async function loadEpisodes() {
+  episodes = await api('/api/episodes');
+  $('epPick').innerHTML = episodes.map(e =>
+    `<option value="${e.id}" ${e.is_active?'selected':''}>${escapeHtml(e.title)}</option>`
+  ).join('');
+  const active = episodes.find(e => e.is_active) || episodes[0];
+  if (active) {
+    activeEpisodeId = active.id;
+    await loadEpisodeState();
+    await loadChat();
+    setComposerEnabled(true);
+  } else {
+    activeEpisodeId = null; storyboard = null; chatMessages = [];
+    renderStage(); renderChat(); setComposerEnabled(false);
+  }
+}
+
+$('epNew').onclick = async () => {
+  const title = prompt('Episode title:', 'Untitled episode');
+  if (title === null) return;
+  await api('/api/episodes', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ title }),
+  });
+  await loadEpisodes();
+};
+$('epPick').onchange = async () => {
+  activeEpisodeId = $('epPick').value;
+  await api(`/api/episodes/${activeEpisodeId}/select`, { method: 'POST' });
+  await loadEpisodeState();
+  await loadChat();
+  setComposerEnabled(true);
+};
+$('chatSend').onclick = sendChat;
+$('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+$('fabChat').onclick = () => $('shell').classList.toggle('chat-open');
+$('videoModel').onchange = saveModels;
+$('imageModel').onchange = saveModels;
+
+setInterval(async () => {
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || !activeEpisodeId || chatBusy) return;
+  try { await loadEpisodeState(); } catch (_) {}
+}, 6000);
+
+(async () => {
+  renderNav();
+  try {
+    account = await api('/api/account');
+    config = await api('/api/config');
+  } catch (e) {
+    account = null; config = {};
+    $('status').textContent = e.message;
+  }
+  renderCredits();
+  try {
+    const [vm, im] = await Promise.all([
+      api('/api/video-models'),
+      api('/api/image-models'),
+    ]);
+    videoModels = vm.data || vm.models || [];
+    imageModels = im.data || im.models || [];
+  } catch (_) {
+    videoModels = [{ id: account?.video_model || 'minimax/hailuo-3' }];
+    imageModels = [{ id: account?.image_model || 'google/gemini-2.5-flash-image' }];
+  }
+  fillModelSelect($('videoModel'), videoModels, account?.video_model);
+  fillModelSelect($('imageModel'), imageModels, account?.image_model);
+  renderStage();
+  try { await loadEpisodes(); } catch (e) { $('status').textContent = e.message; }
+})();
+</script>
+</body>
+</html>

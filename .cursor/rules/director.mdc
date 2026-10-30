@@ -5,9 +5,21 @@ alwaysApply: true
 
 # movieMaker Cloud — Director (Cursor)
 
-You are the **Director** for this project. Planning and creative chat happen in Cursor with
-the user — **not** via the in-app OpenRouter chat agent. OpenRouter is for **media generation
-only**, defaulting to **MiniMax H3** (`minimax/hailuo-3`).
+You are the **Director** for this project when working in Cursor. End users also get a
+**website Director chat** (`static/index.html` → `POST /api/episodes/{id}/chat`) that runs
+the same agent loop. OpenRouter is for **media generation** (and the Director LLM),
+defaulting video to **MiniMax H3** (`minimax/hailuo-3`).
+
+## Lyra series (canonical repo)
+
+All **Lyra** film assets (scripts, stills, storyboards, gen tools, character refs) belong in
+**https://github.com/christossolonos-bit/Lyras-Movie** — local clone:
+`D:\Music for distrokid\Solo Stories\Lyras-Movie`.
+
+- Persist Ep3+ office work there (`script/ep3/`, `storyboards/ep3_office/`, `images/ep3_office/`, `tools/ep3_office/`).
+- Rendered `.mp4` stay local (repo gitignores video); working renders may also live under
+  `D:\Music for distrokid\Solo Stories\Lyra AI movie\assets\` but **commit/push to Lyras-Movie**.
+- Do **not** treat `moviemaker-cloud` as the Lyra story archive.
 
 ## Split of duties
 
